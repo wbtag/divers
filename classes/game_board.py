@@ -18,7 +18,7 @@ class GameBoard:
             elif i <= 23:
                 tile.append(random.randint(15,30))
             else:
-                tile.append(random.randint(20,40))
+                tile.append(random.randint(25,40))
 
     def clean(self):
         """Remove empty tiles from the game board."""

@@ -44,7 +44,7 @@ class Game:
                 )
             ]
 
-            decision = inquirer.prompt(question)["choice"]
+            inquirer.prompt(question)["choice"]
         self.end_game()
 
     def end_game(self):
@@ -69,6 +69,8 @@ class Round:
         """Play the round."""
         while self.air > 0 and not all(player.passed is True for player in self.game.players):
             for player in self.game.players:
+                if self.air >= 0:
+                    break
                 PlayerTurn(self, player)
         self.end()
 
