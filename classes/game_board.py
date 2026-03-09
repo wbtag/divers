@@ -12,13 +12,13 @@ class GameBoard:
         """Assign treasures to game tiles."""
         for i, tile in enumerate(self.tiles):
             if i <= 7:
-                tile.append(random.randint(0,10))
+                tile.append(("Shallow", random.randint(0,10)))
             elif i <= 15:
-                tile.append(random.randint(10,20))
+                tile.append(("Deep", random.randint(10,20)))
             elif i <= 23:
-                tile.append(random.randint(15,30))
+                tile.append(("Abyssal", random.randint(15,30)))
             else:
-                tile.append(random.randint(25,40))
+                tile.append(("Hadal", random.randint(25,40)))
 
     def clean(self):
         """Remove empty tiles from the game board."""
