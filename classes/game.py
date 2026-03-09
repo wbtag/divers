@@ -3,10 +3,10 @@ import time
 import os
 import random
 from itertools import combinations
+from typing import Callable
 import inquirer
 from classes.game_board import GameBoard
 from classes.player import Player
-from typing import Callable
 
 class Game:
     """You just lost the Game."""
@@ -34,22 +34,24 @@ class Game:
             os.system("cls" if os.name == "nt" else "clear")
             Round(self)
             self.round += 1
-            self.game_board.clean()
 
-            question = [
-                inquirer.List(
-                    "choice",
-                    f"End of round {self.round-1}",
-                    [f"Proceed to round {self.round}"],
-                )
-            ]
+            if self.round <= 3:
+                self.game_board.clean()
 
-            inquirer.prompt(question)["choice"]
+                question = [
+                    inquirer.List(
+                        "choice",
+                        f"End of round {self.round-1}",
+                        [f"Proceed to round {self.round}"],
+                    )
+                ]
+
+                inquirer.prompt(question)["choice"]
         self.end_game()
 
     def end_game(self):
         """Handle the endgame."""
-        player_scores = [(player.name, sum(player.inventory))  for player in self.players]
+        player_scores = [(player.name, sum(treasure[1] for treasure in player.inventory))  for player in self.players]
         if all(player[1] == 0 for player in player_scores):
             print("Everyone drowned, the depths win")
         else:
@@ -69,7 +71,7 @@ class Round:
         """Play the round."""
         while self.air > 0 and not all(player.passed is True for player in self.game.players):
             for player in self.game.players:
-                if self.air >= 0:
+                if self.air <= 0:
                     break
                 PlayerTurn(self, player)
         self.end()
@@ -84,6 +86,7 @@ class Round:
             self.game.players.sort(key=lambda x: x.position)
             if player.position != 0:
                 self.game_board.tiles.append(player.treasures)
+                print(f"{player.name} drowned")
             else:
                 player.inventory += player.treasures
             player.reset()
@@ -93,7 +96,7 @@ class Round:
         players = [(player.name[0].upper(), player.position) for player in self.game.players]
         players_in_submarine = [player[0] for player in players if player[1] == 0]
         tiles = []
-        sub = "( _ o _ o _ o _ )"
+        sub = "( o" + "".join([" _ o" for i in self.game.players]) + " )"
         for i, player in enumerate(players_in_submarine):
             sub = sub.replace("_", player, 1)
         for i, pos in enumerate(self.game_board.tiles):
@@ -101,8 +104,14 @@ class Round:
             if match:
                 tiles.append(f"[{match[0]}]")
             else:
-                tile_count = len(self.game_board.tiles[i])
-                tiles.append(f"[{tile_count if tile_count > 0 else "X"}]")
+                tile = self.game_board.tiles[i]
+                if (len(tile) > 0):
+                    tile_symbol = f"[{tile[0][0][0].lower()}]"
+                    if (len(tile) > 1):
+                        tile_symbol = tile_symbol.replace("]", "+]")
+                    tiles.append(tile_symbol)
+                else:
+                    tiles.append("[x]")
         print(sub + "".join(tiles))
         if delay:
             time.sleep(1)
@@ -159,6 +168,14 @@ class PlayerTurn:
                     self.player.position > 0 and self.moved and self.player.treasures
                 ),
                 (
+                    "Inspect tile contents",
+                    self.player.position > 0 and self.moved
+                ),
+                (
+                    "Inspect inventory",
+                    self.player.position > 0 and len(self.player.treasures) > 0
+                ),
+                (
                     "Pass", 
                     self.player.position > 0 and self.moved
                 )
@@ -181,8 +198,10 @@ class PlayerTurn:
                 "Move": self.move,
                 "Move with boost": self.boost,
                 "Start surfacing": self.surface,
+                "Inspect tile contents": self.inspect_tile,
                 "Grab treasure": self.grab_treasure,
                 "Drop treasure": self.drop_treasure,
+                "Inspect inventory": self.inspect_inventory,
                 "Pass": None
             }
 
@@ -209,17 +228,46 @@ class PlayerTurn:
 
     def grab_treasure(self):
         """Handle treasure grabbing."""
-        self.player.treasures.append(self.tiles[self.player.position-1][0])
-        self.tiles[self.player.position-1].pop()
+        self.player.treasures.extend(self.tiles[self.player.position-1])
+        self.tiles[self.player.position-1] = []
 
     def drop_treasure(self):
         """Handle treasure dropping."""
         dropped_treasure = self.player.treasures.pop()
         self.tiles[self.player.position-1].append(dropped_treasure)
+        print(self.tiles[self.player.position-1])
 
     def reduce_air(self, amount: int):
         """Handle air reduction."""
         self.parent_round.reduce_air(amount)
+
+    def inspect_tile(self):
+        """Display treasures on the current tile."""
+        question = [
+                inquirer.List(
+                    "choice",
+                    "Treasures:\n" 
+                    + "\n".join(treasure[0] for treasure in self.tiles[self.player.position-1])
+                    + "\n\nPress Enter to continue",
+                    ["OK"],
+                )
+            ]
+
+        inquirer.prompt(question)["choice"]
+
+    def inspect_inventory(self):
+        """Display the contents of the player's inventory."""
+        question = [
+            inquirer.List(
+                "choice",
+                "You are currently carrying the following treasures:\n"
+                + "\n".join(treasure[0] for treasure in self.player.treasures)
+                + "\n\nPress Enter to continue",
+                ["OK"],
+            )
+        ]
+
+        inquirer.prompt(question)["choice"]
 
     def move(self):
         """Handle movement for the active player."""
